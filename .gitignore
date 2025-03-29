@@ -1,0 +1,7 @@
+
+code/.venv/
+code/myenv/
+code/.cph/
+
+.DS_Store
+Thumbs.db

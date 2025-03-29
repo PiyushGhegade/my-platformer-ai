@@ -105,7 +105,9 @@ class Level:
 					if type == 'terrain':
 						terrain_tile_list = import_cut_graphics('../graphics/terrain/terrain_tiles.png')
 						tile_surface = terrain_tile_list[int(val)]
+						# print(x,y)
 						sprite = StaticTile(tile_size,x,y,tile_surface)
+
 						
 					if type == 'grass':
 						grass_tile_list = import_cut_graphics('../graphics/decoration/grass/grass.png')
@@ -135,6 +137,7 @@ class Level:
 					sprite_group.add(sprite)
 		
 		return sprite_group
+
 
 	def player_setup(self,layout,change_health):
 		self.player_start_pos = None  # Store player's start position
@@ -337,6 +340,7 @@ class Level:
 
 		# water 
 		self.water.draw(self.display_surface,self.world_shift)
+
 
 		# player position
 		player_position = self.get_position()
