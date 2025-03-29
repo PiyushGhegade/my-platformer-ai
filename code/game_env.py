@@ -8,6 +8,24 @@ from player import Player
 from ui import UI
 from main import Game  # Import Game class
 
+
+def extract_cell_positions(csv_file, set_1, set_2):
+    with open(csv_file, "r") as f:
+        lines = f.readlines()
+    
+    list_1 = []
+    list_2 = []
+    
+    for row, line in enumerate(lines):
+        values = list(map(int, line.strip().split(",")))
+        for col, value in enumerate(values):
+            if value in set_1:
+                list_1.append((col*tile_size, 800 - row*tile_size))
+            if value in set_2:
+                list_2.append((col*tile_size, 800 - row*tile_size))
+    
+    return list_1, list_2
+
 class PlatformerEnv(gym.Env):
     """Custom Gym Environment for Mario-like Platformer"""
 
@@ -20,17 +38,24 @@ class PlatformerEnv(gym.Env):
         
         # Set up display BEFORE calling Game
         self.screen = pygame.display.set_mode((screen_width, screen_height))  
-        
+
         # Now, initialize the game
         self.game = Game(external_screen=self.screen)  # Pass the initialized screen
+
+        #Information for Edges Detection
+        csv_file = "../levels/2/level_2_terrain.csv"
+        set_1 = {0, 3, 12, 15}
+        set_2 = {2, 3, 14, 15}
+        self.list_1, self.list_2 = extract_cell_positions(csv_file, set_1, set_2)
+       
 
         # Define action space (0 = Left, 1 = Right, 2 = Jump, 3 = No action)
         self.action_space = spaces.Discrete(4)
 
         # Observation space: (player_x, player_y, velocity_y, coins_collected)
         self.observation_space = spaces.Box(
-        low=np.array([0, 0, 0, 0]), 
-        high=np.array([2200, 800, 0, 100]), 
+        low=np.array([0, 0, 0, 0,]), 
+        high=np.array([4000, 800, 4000, 800 ]), 
         dtype=np.float32
         )
 
@@ -40,7 +65,7 @@ class PlatformerEnv(gym.Env):
     def reset(self):
         """Reset game state at the start of each episode"""
         self.game = Game(self.screen)
-
+        print(self.list_1)
         # Get player position
         player_position = self.game.level.get_position()
         self.player_x = player_position[0]
@@ -80,43 +105,62 @@ class PlatformerEnv(gym.Env):
         positions = self.game.level.get_position_of_start_and_goal()
         self.player_x = player_position[0]
         self.player_y = player_position[1]
-        print(self.player_x, positions["goal"][0], positions["player_start"][0])
+        # print(self.player_x)
+        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list1]
+        result2 = [(a - self.player_x, b - self.player_y) for a, b in self.list2]
+        start_x = None
+        start_y = None
+        end_x = None
+        end_y = None
+        res = float('inf')
+        for a, b in result1:
+            if a > 0 and b > 0 and ((self.player_x - a) ** 2 + (self.player_y - b) ** 2) < res:
+                start_x = a
+                start_y = b
+                res = (self.player_x - a) ** 2 + (self.player_y - b) ** 2
+        res = float('inf')
+        for a, b in result2:
+            if a > 0 and b > 0 and ((self.player_x - a) ** 2 + (self.player_y - b) ** 2) < res:
+                end_x = a
+                end_y = b
+                res = (self.player_x - a) ** 2 + (self.player_y - b) ** 2
+
+        
+
+
+        # print(self.player_x, positions["goal"][0], positions["player_start"][0])
         # Reward system
         reward = 0
         done = False
-
         # Reward for collecting coins
-        reward += self.game.coins * 10  
+        # reward += self.game.coins * 10  
 
-        # Reward for moving to the right
-        # x0 = positions["goal"][0] - positions["player_start"][0]
-        # x = positions["goal"][0] - self.player_x
-        # r = 0.1
+        # movement_reward = (self.player_x - previous_x) * 0.0001  
+        # reward += movement_reward  # Encourage moving right
 
-        # reward -= (r*x)/x0
-        # Reward for moving right
-        movement_reward = (self.player_x - previous_x) * 0.0001  
-        reward += movement_reward  # Encourage moving right
-
+        x0 =  positions["goal"][0]-positions["player_start"][0]
+        x = positions["goal"][0]-self.player_x
+        progress_towards_goal = (x0 - x) / x0
+        reward += progress_towards_goal * 0.01
         # # Penalize moving left
         # if self.player_x < previous_x:
         #     reward -= 0.05
 
-        # # Penalize staying in one place
-        # if self.player_x == previous_x:
-        #     reward -= 0.02  
+        # Penalize staying in one place
+        if self.player_x == previous_x:
+            reward -= 0.02  
 
 
         # Penalize falling down
         if self.player_y > 700:
-            reward -= 50  # Big penalty for falling
+            reward -= 100  # Big penalty for falling
             print("Player fell into water! Restarting level...")
             done = True
             self.reset()  # Reset level (instead of quitting)
 
         # Reward for completing the level
         elif self.player_x >= positions["goal"][0]:
-            reward += 100  # Bonus for completing the level
+            reward += 300  # Bonus for completing the level
             print("Level completed!")
             done = True  # Stop episode
 
@@ -126,7 +170,7 @@ class PlatformerEnv(gym.Env):
         self.total_reward += reward
 
         # Print the reward for the current step
-        print(f"Action : {action} Reward: {reward} {self.total_reward}")
+        # print(f"Action : {action} Reward: {reward} {self.total_reward}")
 
         return np.array([self.player_x, self.player_y, self.velocity_y, self.game.coins], dtype=np.float32), self.total_reward, done, {}
 
