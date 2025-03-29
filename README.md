@@ -45,3 +45,9 @@ This project aims to develop an AI model that learns to play a **customized 2D g
 - Trained two models for the first approach, and they are working successfully.  
 
 ---
+
+## **How to Run**  
+
+- Instructions on how to run the project will be provided upon completion.
+
+---
