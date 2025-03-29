@@ -27,3 +27,21 @@ This project aims to develop an AI model that learns to play a **customized 2D g
 - Improve AI performance over time using **trial-and-error learning**.  
 
 ---
+
+## **Improvements**  
+
+- There are two ways to implement reinforcement learning:
+  1. **First Approach** – The player should reach the goal as soon as possible (**Completed**).
+  2. **Second Approach** – The player should collect all gold coins before reaching the goal (**Yet to be done**).
+
+- Further improvements can be made by implementing AI for enemies instead of relying on random movements.
+
+---
+
+## **Work Completed**  
+
+- Make The 2-D Platformer game Working Game 
+- Make The Game Environment in weell struture according to gym library
+- Train Two Model For First Appraoch and it is working Fine
+
+---
