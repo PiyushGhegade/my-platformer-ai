@@ -40,8 +40,8 @@ This project aims to develop an AI model that learns to play a **customized 2D g
 
 ## **Work Completed**  
 
-- Make The 2-D Platformer game Working Game 
-- Make The Game Environment in weell struture according to gym library
-- Train Two Model For First Appraoch and it is working Fine
+- Developed a fully functional **2D platformer game**.  
+- Structured the game environment to be compatible with the **Gym library**.  
+- Trained two models for the first approach, and they are working successfully.  
 
 ---
