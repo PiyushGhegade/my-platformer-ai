@@ -154,12 +154,15 @@ class PlatformerEnv(gym.Env):
 
         # Penalize staying in one place
         if self.player_x == previous_x:
-            reward -= 0.02  
+            reward -= 0.001 
 
+        # Penalize jumping (action == 2)
+        if action == 2:  # If the action is Jump
+            reward -= 0.005  # Small penalty for jumping
 
         # Penalize falling down
         if self.player_y > 700:
-            reward -= 50  # Big penalty for falling
+            reward -= 20  # Big penalty for falling
             print("Player fell into water! Restarting level...")
             done = True
             self.reset()  # Reset level (instead of quitting)
