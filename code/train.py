@@ -15,7 +15,7 @@ model = PPO(
     batch_size=64,  # Ensure batches aren't too small
     gamma=0.99,  # Keeps long-term rewards important
     )
-model.learn(total_timesteps=50000)
+model.learn(total_timesteps=100000)
 
 # Save trained modele
 model.save("platformer_ai_level_1")

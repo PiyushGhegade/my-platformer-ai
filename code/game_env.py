@@ -54,8 +54,8 @@ class PlatformerEnv(gym.Env):
 
         # Observation space: (player_x, player_y, velocity_y, coins_collected)
         self.observation_space = spaces.Box(
-        low=np.array([0, 0, 0, 0,]), 
-        high=np.array([4000, 800, 4000, 800 ]), 
+        low=np.array([0, 0, 0, 0, 0, 0]), 
+        high=np.array([4000, 800, 4000, 800 , 4000, 800]), 
         dtype=np.float32
         )
 
@@ -72,10 +72,16 @@ class PlatformerEnv(gym.Env):
         self.player_y = player_position[1]
         self.velocity_y = 0
         self.previous_x = self.player_x  # Store the initial position for comparison
+        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list_1]
+        result2 = [(a - self.player_x, b - self.player_y) for a, b in self.list_2]
+        start_x = self.player_x - result1[0][0]
+        start_y = self.player_x - result1[0][1]
+        end_x = self.player_x - result2[0][0]
+        end_y = self.player_x - result2[0][1]
 
         self.total_reward = 0
 
-        return np.array([self.player_x, self.player_y, self.velocity_y, self.game.coins], dtype=np.float32)
+        return np.array([self.player_x, self.player_y, start_x, start_y, end_x, end_y], dtype=np.float32)
 
     def _apply_action(self, action):
         """Simulate key presses for the agent"""
@@ -106,12 +112,12 @@ class PlatformerEnv(gym.Env):
         self.player_x = player_position[0]
         self.player_y = player_position[1]
         # print(self.player_x)
-        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list1]
-        result2 = [(a - self.player_x, b - self.player_y) for a, b in self.list2]
-        start_x = None
-        start_y = None
-        end_x = None
-        end_y = None
+        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list_1]
+        result2 = [(a - self.player_x, b - self.player_y) for a, b in self.list_2]
+        start_x = self.player_x - result1[0][0]
+        start_y = self.player_x - result1[0][1]
+        end_x = self.player_x - result2[0][0]
+        end_y = self.player_x - result2[0][1]
         res = float('inf')
         for a, b in result1:
             if a > 0 and b > 0 and ((self.player_x - a) ** 2 + (self.player_y - b) ** 2) < res:
@@ -153,7 +159,7 @@ class PlatformerEnv(gym.Env):
 
         # Penalize falling down
         if self.player_y > 700:
-            reward -= 100  # Big penalty for falling
+            reward -= 50  # Big penalty for falling
             print("Player fell into water! Restarting level...")
             done = True
             self.reset()  # Reset level (instead of quitting)
@@ -170,9 +176,9 @@ class PlatformerEnv(gym.Env):
         self.total_reward += reward
 
         # Print the reward for the current step
-        # print(f"Action : {action} Reward: {reward} {self.total_reward}")
+        print(f"{action} {self.player_x} {reward} {self.total_reward} {start_x} {start_y} {end_x} {end_y}")
 
-        return np.array([self.player_x, self.player_y, self.velocity_y, self.game.coins], dtype=np.float32), self.total_reward, done, {}
+        return np.array([self.player_x, self.player_y, start_x, start_y, end_x, end_y], dtype=np.float32), self.total_reward, done, {}
 
     def render(self, mode="human"):
         """Render a single frame of the game"""
