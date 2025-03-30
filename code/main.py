@@ -19,7 +19,7 @@ class Game:
         self.screen = external_screen if external_screen else pygame.display.set_mode((screen_width, screen_height))
         
         # Directly start Level 1
-        self.level = Level(2, self.screen, self.change_coins, self.change_health)
+        self.level = Level(0, self.screen, self.change_coins, self.change_health)
         self.status = 'level'
         self.level_bg_music.play(loops=-1)
 
@@ -36,7 +36,7 @@ class Game:
         """Restart the level instead of quitting the game"""
         self.cur_health = 100  # Reset health
         self.coins = 0  # Reset coins
-        self.level = Level(2, self.screen, self.change_coins, self.change_health)  # Restart Level 1
+        self.level = Level(0, self.screen, self.change_coins, self.change_health)  # Restart Level 1
         self.status = 'level'
 
     def run(self):
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
     game = Game(screen)
 
-    csv_file = "../levels/2/level_2_terrain.csv"
+    csv_file = "../levels/0/level_0_terrain.csv"
     set_1 = {0, 3, 12, 15}
     set_2 = {2, 3, 14, 15}
     list_1, list_2 = extract_cell_positions(csv_file, set_1, set_2)
