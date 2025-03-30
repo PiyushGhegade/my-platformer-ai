@@ -97,7 +97,7 @@ class Player(pygame.sprite.Sprite):
 				flipped_dust_particle = pygame.transform.flip(dust_particle,True,False)
 				self.display_surface.blit(flipped_dust_particle,pos)
 
-	def get_input(self, ai_action=True):
+	def get_input(self, ai_action=None):
 		"""Handles player input: AI-controlled or keyboard-based"""
 		
 		if ai_action is not None:

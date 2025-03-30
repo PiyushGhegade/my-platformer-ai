@@ -43,7 +43,7 @@ class PlatformerEnv(gym.Env):
         self.game = Game(external_screen=self.screen)  # Pass the initialized screen
 
         #Information for Edges Detection
-        csv_file = "../levels/0/level_0_terrain.csv"
+        csv_file = "../levels/2/level_2_terrain.csv"
         set_1 = {0,2, 3, 12,14}
         # set_2 = {2, 3, 14, 15}
         self.list_1 = extract_cell_positions(csv_file, set_1)
