@@ -3,6 +3,8 @@ from settings import *
 from level import Level
 from ui import UI
 
+
+
 class Game:
     def __init__(self, external_screen=None):
         """Initialize the game. Accepts an external screen if running from Gym."""
@@ -16,8 +18,8 @@ class Game:
         # Use an external screen if provided (Gym), otherwise create a new one
         self.screen = external_screen if external_screen else pygame.display.set_mode((screen_width, screen_height))
         
-        # Directly start Level 1
-        self.level = Level(2, self.screen, self.change_coins, self.change_health)
+        # Directly start cur_level
+        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)
         self.status = 'level'
         self.level_bg_music.play(loops=-1)
 
@@ -34,7 +36,7 @@ class Game:
         """Restart the level instead of quitting the game"""
         self.cur_health = 100  # Reset health
         self.coins = 0  # Reset coins
-        self.level = Level(2, self.screen, self.change_coins, self.change_health)  # Restart Level 1
+        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)  # Restart Level 1
         self.status = 'level'
 
     def run(self):
@@ -46,6 +48,7 @@ class Game:
         # Restart the level when health reaches zero
         if self.cur_health <= 0:
             self.reset()
+        # Give condition to reset if player fall
 
 # Run the game normally if executed directly
 if __name__ == "__main__":
@@ -54,6 +57,7 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
     game = Game(screen)
 
+    #Main Code
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

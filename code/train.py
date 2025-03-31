@@ -1,6 +1,7 @@
 import gym
 from stable_baselines3 import PPO
 from game_env import PlatformerEnv
+from settings import *
 
 # Create environment
 env = PlatformerEnv()
@@ -15,8 +16,8 @@ model = PPO(
     batch_size=64,  # Ensure batches aren't too small
     gamma=0.99,  # Keeps long-term rewards important
     )
-model.learn(total_timesteps=50000)
+model.learn(total_timesteps=200)
 
 # Save trained modele
-model.save("platformer_ai_level_1")
+model.save(f"../model/{model_name}")
 env.close()

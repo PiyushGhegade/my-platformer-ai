@@ -2,6 +2,8 @@ import pygame
 from support import import_folder
 from math import sin
 from ai import AI
+import sys
+from settings import control_ai
 
 class Player(pygame.sprite.Sprite):
 	def __init__(self,pos,surface,create_jump_particles,change_health):
@@ -97,7 +99,7 @@ class Player(pygame.sprite.Sprite):
 				flipped_dust_particle = pygame.transform.flip(dust_particle,True,False)
 				self.display_surface.blit(flipped_dust_particle,pos)
 
-	def get_input(self, ai_action=True):
+	def get_input(self, ai_action=control_ai):
 		"""Handles player input: AI-controlled or keyboard-based"""
 		
 		if ai_action is not None:

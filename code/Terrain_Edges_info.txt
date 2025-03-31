@@ -1,0 +1,6 @@
+Terrain Edges:
+incoming Edges - 0
+outgoing Edges - 2
+Single Edges - 3
+Single right Edges - 12 
+Single left Edges - 14
