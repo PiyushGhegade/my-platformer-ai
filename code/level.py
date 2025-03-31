@@ -237,13 +237,13 @@ class Level:
 
 	def check_death(self):
 		# if self.player.sprite.rect.top > screen_height:
-		# 	change_health(-101)
+		# 	self.change_health(-101)
 		pass
 		
 		
 	def check_win(self):
 		# if pygame.sprite.spritecollide(self.player.sprite,self.goal,False):
-		# 	self.create_overworld(self.current_level,self.new_max_level)
+			# self.create_overworld(self.current_level,self.new_max_level)
 		pass
 			
 	def check_coin_collisions(self):

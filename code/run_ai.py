@@ -1,9 +1,13 @@
 import gym
 from stable_baselines3 import PPO
 from game_env import PlatformerEnv
+from settings import *
+import sys
+
+
 
 # Load trained model
-model = PPO.load("platformer_ai_level_2")
+model = PPO.load(f"../model/{sys.argv[1]}")
 
 # Create environment
 env = PlatformerEnv()
@@ -30,6 +34,7 @@ while True:
 
     # Optionally, print a message or log the completion of each episode
     print("Episode completed. Resetting environment...")
+    # break is needed here!!
 
 # Close the environment when done (this will never be reached due to infinite loop)
 env.close()
