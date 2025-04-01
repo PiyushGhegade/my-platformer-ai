@@ -7,7 +7,6 @@ from decoration import Sky, Water, Clouds
 from player import Player
 from particles import ParticleEffect
 from game_data import levels
-# from main import change_health
 from ai import AI
 
 class Level:
@@ -236,14 +235,14 @@ class Level:
 			self.dust_sprite.add(fall_dust_particle)
 
 	def check_death(self):
-		# if self.player.sprite.rect.top > screen_height:
-		# 	self.change_health(-101)
-		pass
+		if self.player.sprite.rect.top > screen_height:
+			self.change_health(-101)
+		
 		
 		
 	def check_win(self):
-		# if pygame.sprite.spritecollide(self.player.sprite,self.goal,False):
-			# self.create_overworld(self.current_level,self.new_max_level)
+		if pygame.sprite.spritecollide(self.player.sprite,self.goal,False):
+			self.create_overworld(self.current_level,self.new_max_level)
 		pass
 			
 	def check_coin_collisions(self):

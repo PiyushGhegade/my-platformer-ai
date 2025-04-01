@@ -1,7 +1,6 @@
 import gym
 from stable_baselines3 import PPO
 from game_env import PlatformerEnv
-from settings import *
 
 # Create environment
 env = PlatformerEnv()
@@ -19,5 +18,5 @@ model = PPO(
 model.learn(total_timesteps=200)
 
 # Save trained modele
-model.save(f"../model/{model_name}")
+model.save(f"../model/Himanshu")
 env.close()

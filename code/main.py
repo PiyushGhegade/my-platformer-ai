@@ -4,7 +4,6 @@ from level import Level
 from ui import UI
 
 
-
 class Game:
     def __init__(self, external_screen=None):
         """Initialize the game. Accepts an external screen if running from Gym."""
@@ -36,7 +35,7 @@ class Game:
         """Restart the level instead of quitting the game"""
         self.cur_health = 100  # Reset health
         self.coins = 0  # Reset coins
-        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)  # Restart Level 1
+        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)  # Restart cur_level
         self.status = 'level'
 
     def run(self):
