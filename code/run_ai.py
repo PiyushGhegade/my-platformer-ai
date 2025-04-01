@@ -4,8 +4,6 @@ from game_env import PlatformerEnv
 from settings import *
 import sys
 
-
-
 # Load trained model
 model = PPO.load(f"../model/{sys.argv[1]}")
 

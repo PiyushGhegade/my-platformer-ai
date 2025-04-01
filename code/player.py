@@ -206,6 +206,7 @@ class Player(pygame.sprite.Sprite):
 		self.run_dust_animation()
 		self.invincibility_timer()
 		self.wave_value()
+		
 	
 
 	

@@ -146,10 +146,10 @@ class PlatformerEnv(gym.Env):
         # movement_reward = (self.player_x - previous_x) * 0.0001  
         # reward += movement_reward  # Encourage moving right
 
-        x0 =  positions["goal"][0]-positions["player_start"][0]
-        x = positions["goal"][0]-self.player_x
-        progress_towards_goal = (x0 - x) / x0
-        reward += progress_towards_goal * 0.05
+        # x0 =  positions["goal"][0]-positions["player_start"][0]
+        # x = positions["goal"][0]-self.player_x
+        # progress_towards_goal = (x0 - x) / x0
+        # reward += progress_towards_goal * 0.05
         # # Penalize moving left
         # if self.player_x < previous_x:
         #     reward -= 0.05
@@ -167,11 +167,12 @@ class PlatformerEnv(gym.Env):
         #     reward += 0.0001  # Small penalty for jumping
 
         # Penalize falling down
+        print(f"{action} {self.player_x} {reward} {self.total_reward} {start_x} {start_y}")
         if self.player_y > 700:
             reward -= 20  # Big penalty for falling
             print("Player fell into water! Restarting level...")
             done = True
-            self.reset()  # Reset level (instead of quitting)
+            # self.reset()  # Reset level (instead of quitting)
 
         # Reward for completing the level
         elif self.player_x >= positions["goal"][0]:
@@ -185,7 +186,6 @@ class PlatformerEnv(gym.Env):
         self.total_reward += reward
 
         # Print the reward for the current step
-        print(f"{action} {self.player_x} {reward} {self.total_reward} {start_x} {start_y}")
 
         return np.array([self.player_x, self.player_y, start_x, start_y], dtype=np.float32), self.total_reward, done, {}
 
