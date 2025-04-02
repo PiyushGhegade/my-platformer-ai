@@ -53,7 +53,7 @@ class PlatformerEnv(gym.Env):
 
         # Observation space: (player_x, player_y, velocity_y, coins_collected)
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(7,), dtype=np.float32  # ✅ Flattened observation space
+            low=-np.inf, high=np.inf, shape=(9,), dtype=np.float32  # ✅ Flattened observation space
         )
 
 
@@ -92,30 +92,45 @@ class PlatformerEnv(gym.Env):
         
         # Calculate nearest obstacle/gap positions
         result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list_1]
-        
-        # Find the closest obstacle to the right of the player
-        closest_obstacle = None
-        min_distance = float('inf')
-        
+
+        # Initialize variables for the two nearest points
+        nearest_1 = None
+        nearest_2 = None
+        dist_1 = float('inf')  # Smallest distance
+        dist_2 = float('inf')  # Second smallest distance
+
         for (dx, dy), (orig_x, orig_y) in zip(result1, self.list_1):
             if orig_x > self.player_x:  # Only consider obstacles to the right
                 distance = dx**2 + dy**2  # Squared distance
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_obstacle = (dx, orig_y - self.player_y)
-        
-        # Default to first obstacle if none found to the right
-        if closest_obstacle is None and len(result1) > 0:
-            closest_obstacle = (result1[0][0], self.list_1[0][1] - self.player_y)
-        
-        start_x, start_y = closest_obstacle if closest_obstacle else (0, 0)
+
+                if distance < dist_1:
+                    # Shift first nearest to second nearest
+                    nearest_2, dist_2 = nearest_1, dist_1
+                    # Update first nearest
+                    nearest_1 = (dx, orig_y - self.player_y)
+                    dist_1 = distance
+                elif distance < dist_2:
+                    # Update second nearest
+                    nearest_2 = (dx, orig_y - self.player_y)
+                    dist_2 = distance
+
+        # Default to first obstacle if no valid ones found
+        if nearest_1 is None and len(result1) > 0:
+            nearest_1 = (result1[0][0], self.list_1[0][1] - self.player_y)
+
+        if nearest_2 is None and len(result1) > 1:
+            nearest_2 = (result1[1][0], self.list_1[1][1] - self.player_y)
+
+        start_x, start_y = nearest_1 if nearest_1 else (0, 0)
+        second_x, second_y = nearest_2 if nearest_2 else (0, 0)
         
         # Return observation in Dict format matching observation_space
         return np.array([
             self.player_x, self.player_y,           # Position (x, y)
             player.velocity_x, player.velocity_y,   # Velocity (vx, vy)
             int(player.on_ground),                  # Grounded status (binary)
-            start_x, start_y                         # Next obstacle position
+            start_x, start_y,
+            second_x, second_y                         # Next obstacle position
         ], dtype=np.float32)
 
     def step(self, action):
@@ -130,19 +145,30 @@ class PlatformerEnv(gym.Env):
         positions = self.game.level.get_position_of_start_and_goal()
         self.player_x = player_position[0]
         self.player_y = player_position[1]
-        # print(self.player_x)
-        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list_1]
-        start_x = result1[1][0]
-        start_y = self.list_1[1][1]
-        res = float('inf')  # Initialize with a large number
 
-        for i, (a, b) in enumerate(result1):  # Track index using enumerate()
-            distance = (a) ** 2 + (b) ** 2  # Compute squared distance
-            
-            if a > 0 and self.list_1[i][0] > self.player_x and distance < res:
-                start_x = a
-                start_y = self.list_1[i][1]
-                res = distance
+        # Compute relative positions
+        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list_1]
+
+        # Initialize variables for the two nearest points
+        nearest_1 = None
+        nearest_2 = None
+        dist_1 = float('inf')  # Smallest distance
+        dist_2 = float('inf')  # Second smallest distance
+
+        for i, (a, b) in enumerate(result1):  
+            distance = a ** 2 + b ** 2  # Squared distance to avoid sqrt computation
+
+            if a > 0 and self.list_1[i][0] > self.player_x:
+                if distance < dist_1:
+                    # Shift the first nearest point to second
+                    nearest_2, dist_2 = nearest_1, dist_1
+                    # Update first nearest
+                    nearest_1 = (a, self.list_1[i][1])
+                    dist_1 = distance
+                elif distance < dist_2:
+                    # Update second nearest if it is smaller than previous second nearest
+                    nearest_2 = (a, self.list_1[i][1])
+                    dist_2 = distance
 
         collision_info = self.game.level.check_on_ground()
         player_state = self.game.level.get_player_state()
@@ -175,25 +201,30 @@ class PlatformerEnv(gym.Env):
             # self.reset()  # Reset level (instead of quitting)
 
         # Reward for completing the level
-        elif self.player_x >= positions["goal"][0]:
+        if self.player_x >= positions["goal"][0]:
             reward += 100  # Bonus for completing the level
             print("Level completed!")
             done = True  # Stop episode
 
         # Update previous_x to the current position
-        self.previous_x = self.player_x
+        
 
         self.total_reward += reward
-        
+        Goal = positions["goal"][0]
         # Get next obstacle info (from your existing code)
-        next_obstacle = [start_x,start_y]
+        next_obstacle = [nearest_1[0],nearest_1[1]]
+        next_obstacle2 = [nearest_2[0],nearest_2[1]]
+        # print(f"{Goal} {player_state['position'][0]} {self.player_x}")
+        velocity = self.player_x - self.previous_x
+        print(f"{action} {Goal} {self.player_x} {self.player_y} {velocity} {player_state['velocity'][1]} {int(collision_info)} {reward} {self.total_reward} ")
+        self.previous_x = self.player_x
 
-        print(f"{action} {player_state['position'][0]} {player_state['position'][1]} {start_x} {start_y} {player_state['velocity'][0]} {player_state['velocity'][1]} {int(collision_info)} {reward} {self.total_reward} ")
         observation = np.array([
-            player_state['position'][0], player_state['position'][1],   # Position (x, y)
-            player_state['velocity'][0], player_state['velocity'][1],   # Velocity (vx, vy)
+            self.player_x, self.player_y,   # Position (x, y)
+            velocity, player_state['velocity'][1],   # Velocity (vx, vy)
             int(collision_info),                           # Grounded status (binary)
-            next_obstacle[0], next_obstacle[1]                          # Next obstacle position
+            next_obstacle[0], next_obstacle[1],
+            next_obstacle2[0], next_obstacle2[1]                          # Next obstacle position
         ], dtype=np.float32)
 
         return observation, reward, done, {}
