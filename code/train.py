@@ -15,8 +15,8 @@ model = PPO(
     batch_size=64,  # Ensure batches aren't too small
     gamma=0.99,  # Keeps long-term rewards important
     )
-model.learn(total_timesteps=200)
+model.learn(total_timesteps=200000)
 
 # Save trained modele
-model.save(f"../model/Himanshu")
+model.save(f"../model/Piyush")
 env.close()

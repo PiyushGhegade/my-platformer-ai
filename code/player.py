@@ -14,6 +14,13 @@ class Player(pygame.sprite.Sprite):
 		self.image = self.animations['idle'][self.frame_index]
 		self.rect = self.image.get_rect(topleft = pos)
 		
+		# Add these velocity tracking attributes
+		self.previous_pos = pos
+		self.velocity_y = 0
+		self.velocity_x = 0
+		self.previous_y = pos[1]  # Track previous y position for velocity calculation
+		self.max_fall_velocity = 20  # Optional: cap maximum falling speed
+
 		# dust particles 
 		self.import_dust_run_particles()
 		self.dust_frame_index = 0
@@ -174,11 +181,21 @@ class Player(pygame.sprite.Sprite):
 				self.status = 'idle'
 
 	def apply_gravity(self):
+		self.previous_y = self.collision_rect.y  # Store position before applying gravity
 		self.direction.y += self.gravity
 		self.collision_rect.y += self.direction.y
+    
+    # Update velocity_y (pixels per frame)
+		self.velocity_y = self.collision_rect.y - self.previous_y
+    
+    # Optional: Cap maximum falling velocity
+		if self.velocity_y > self.max_fall_velocity:
+			self.velocity_y = self.max_fall_velocity
+			self.direction.y = self.max_fall_velocity
 
 	def jump(self):
 		self.direction.y = self.jump_speed
+		self.velocity_y = self.jump_speed  # Set initial jump velocity
 		self.jump_sound.play()
 
 	def get_damage(self):
@@ -187,6 +204,13 @@ class Player(pygame.sprite.Sprite):
 			self.change_health(-10)
 			self.invincible = True
 			self.hurt_time = pygame.time.get_ticks()
+
+	def _update_velocities(self):
+		"""Calculate pixel-per-frame velocities"""
+		current_x, current_y = self.rect.x, self.rect.y
+		self.velocity_x = current_x - self.previous_pos[0]
+		self.velocity_y = current_y - self.previous_pos[1]
+		self.previous_pos = (current_x, current_y)
 
 	def invincibility_timer(self):
 		if self.invincible:
@@ -199,6 +223,10 @@ class Player(pygame.sprite.Sprite):
 		if value >= 0: return 255
 		else: return 0
 
+	def get_velocity(self):
+		"""Returns the player's current y-velocity"""
+		return self.velocity_y,self.velocity_x
+
 	def update(self):
 		self.get_input()
 		self.get_status()
@@ -206,7 +234,8 @@ class Player(pygame.sprite.Sprite):
 		self.run_dust_animation()
 		self.invincibility_timer()
 		self.wave_value()
-		
+		self._update_velocities()
+	
 	
 
 	

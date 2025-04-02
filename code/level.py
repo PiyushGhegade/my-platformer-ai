@@ -36,6 +36,8 @@ class Level:
 
 		# Now that player is set up, initialize AI
 		# self.ai = AI(self)
+		# Information of player on gorund
+		self.on_ground = False 
 
 		# user interface 
 		self.change_coins = change_coins
@@ -186,21 +188,27 @@ class Level:
 	def vertical_movement_collision(self):
 		player = self.player.sprite
 		player.apply_gravity()
-		collidable_sprites = self.terrain_sprites.sprites() + self.crate_sprites.sprites() + self.fg_palm_sprites.sprites()
-
+		
+		# Combine all collidable sprites
+		collidable_sprites = (self.terrain_sprites.sprites() + 
+							self.crate_sprites.sprites() + 
+							self.fg_palm_sprites.sprites())
+		
+		player.on_ground = False  # Reset before checking
+		
 		for sprite in collidable_sprites:
 			if sprite.rect.colliderect(player.collision_rect):
-				if player.direction.y > 0: 
+				if player.direction.y > 0:  # Falling down
 					player.collision_rect.bottom = sprite.rect.top
 					player.direction.y = 0
 					player.on_ground = True
-				elif player.direction.y < 0:
+				elif player.direction.y < 0:  # Moving up
 					player.collision_rect.top = sprite.rect.bottom
 					player.direction.y = 0
 					player.on_ceiling = True
-
-		if player.on_ground and player.direction.y < 0 or player.direction.y > 1:
-			player.on_ground = False
+		
+		# Update the player's actual rect position
+		player.rect.midbottom = player.collision_rect.midbottom
 
 	def scroll_x(self):
 		player = self.player.sprite
@@ -235,14 +243,34 @@ class Level:
 			self.dust_sprite.add(fall_dust_particle)
 
 	def check_death(self):
-		if self.player.sprite.rect.top > screen_height:
-			self.change_health(-101)
-		
-		
-		
+		# if self.player.sprite.rect.top > screen_height:
+		# 	self.change_health(-101)
+		pass
+
+	# def get_collision_info(self):
+	# 	"""Returns important collision information for RL"""
+	# 	player = self.player.sprite
+	# 	return {
+    #         'on_ground': player.on_ground,
+    #         'on_left': player.on_left,
+    #         'on_right': player.on_right,
+    #         'on_ceiling': player.on_ceiling,
+    #         'terrain_sprites': self.terrain_sprites  # Pass terrain for ground check
+    #     }
+	
+	def get_player_state(self):
+		"""Returns comprehensive player state"""
+		player = self.player.sprite
+		return {
+            'position': (player.rect.x, player.rect.y),
+            'velocity': (player.velocity_x, player.velocity_y),
+            'facing_right': player.facing_right,
+            'on_ground': player.on_ground,
+        }
+
 	def check_win(self):
-		if pygame.sprite.spritecollide(self.player.sprite,self.goal,False):
-			self.create_overworld(self.current_level,self.new_max_level)
+		# if pygame.sprite.spritecollide(self.player.sprite,self.goal,False):
+		# 	self.create_overworld(self.current_level,self.new_max_level)
 		pass
 			
 	def check_coin_collisions(self):
@@ -275,6 +303,32 @@ class Level:
 	
 	def get_position_of_start_and_goal(self):
 		return {"player_start": self.player_start_pos, "goal": self.goal_pos}
+	
+	def check_player_ground(self):
+		"""Check if player is standing on ground (called from Level's run method)"""
+		player = self.player.sprite
+		self.on_ground = False  # Reset before checking
+        
+        # Create a small rect below player's feet
+		ground_check_rect = pygame.Rect(
+            player.collision_rect.bottomleft[0] + 5,
+            player.collision_rect.bottomleft[1],
+            player.collision_rect.width - 10,
+            5  # Small height for ground check
+        )
+        
+        # Check against all collidable terrain
+		collidable_sprites = (self.terrain_sprites.sprites() + 
+                            self.crate_sprites.sprites() + 
+                            self.fg_palm_sprites.sprites())
+        
+		for sprite in collidable_sprites:
+			if ground_check_rect.colliderect(sprite.rect):
+				self.on_ground = True
+				break
+	
+	def check_on_ground(self):
+		return self.on_ground
 	
 	def run(self):
 		# run the entire game / level 
@@ -325,6 +379,9 @@ class Level:
 		self.get_player_on_ground()
 		self.vertical_movement_collision()
 		self.create_landing_dust()
+
+		# Update ground state before player updates
+		self.check_player_ground()
 		
 		self.scroll_x()
 		self.player.draw(self.display_surface)
