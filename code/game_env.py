@@ -1,13 +1,20 @@
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
-import pygame, sys
+import pygame
+import sys
 from settings import *
 from level import Level
 from player import Player
 from ui import UI
 from main import Game  # Import Game class
 
+# Register the environment
+gym.register(
+    id='CustomPlatformer-v0',
+    entry_point='game_env:PlatformerEnv',
+    max_episode_steps=1000,
+)
 
 def extract_cell_positions(csv_file, set_1):
     with open(csv_file, "r") as f:
@@ -20,68 +27,77 @@ def extract_cell_positions(csv_file, set_1):
         for col, value in enumerate(values):
             if value in set_1:
                 list_1.append((col*tile_size, 800 - row*tile_size))
-            # if value in set_2:
-            #     list_2.append((col*tile_size, 800 - row*tile_size))
     
     return list_1
 
 class PlatformerEnv(gym.Env):
-    """Custom Gym Environment for Mario-like Platformer"""
+    """Custom Gymnasium Environment for Mario-like Platformer"""
 
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self):
+    def __init__(self, render_mode=None):
         super(PlatformerEnv, self).__init__()
-
-        pygame.init()  # Initialize pygame first
         
-        # Set up display BEFORE calling Game
-        self.screen = pygame.display.set_mode((screen_width, screen_height))  
-
-        # Now, initialize the game
-        self.game = Game(external_screen=self.screen)  # Pass the initialized screen
-
-        #Information for Edges Detection
+        self.render_mode = render_mode
+        
+        # Information for Edges Detection
         csv_file = f"../levels/{cur_level}/level_{cur_level}_terrain.csv"
-        set_1 = {0,2, 3, 12,14}
-        # set_2 = {2, 3, 14, 15}
+        set_1 = {0, 2, 3, 12, 14}
         self.list_1 = extract_cell_positions(csv_file, set_1)
         self.list_1 = sorted(self.list_1, key=lambda item: item[0])
 
         # Define action space (0 = Left, 1 = Right, 2 = Jump, 3 = No action)
         self.action_space = spaces.Discrete(4)
 
-        # Observation space: (player_x, player_y, velocity_y, coins_collected)
+        # Observation space: (player_x, player_y, velocity_x, velocity_y, on_ground, next_obstacle_x, next_obstacle_y, next_obstacle2_x, next_obstacle2_y)
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(9,), dtype=np.float32  # ✅ Flattened observation space
+            low=-np.inf, high=np.inf, shape=(9,), dtype=np.float32
         )
 
+        # Initialize pygame only once
+        if not pygame.get_init():
+            pygame.init()
+            pygame.mixer.init()  # Initialize the mixer for audio
 
-        # Get initial player position
-        self.reset()
+        # Set up screen if rendering
+        if self.render_mode == "human":
+            self.screen = pygame.display.set_mode((screen_width, screen_height))
+            self.clock = pygame.time.Clock()
+        else:
+            self.screen = None
+            self.clock = None
 
-    def reset(self):
+        self.game = None
+        self.player_x = 0
+        self.player_y = 0
+        self.previous_x = 0
+        self.total_reward = 0
+
+    def reset(self, seed=None, options=None):
         """Reset game state at the start of each episode"""
-        # Reset the game state
-        self.game = Game(self.screen)
+        super().reset(seed=seed)
         
-        # Get player sprite and reset all tracking variables
+        # Reset the game state
+        if self.render_mode == "human":
+            self.screen = pygame.display.set_mode((screen_width, screen_height))
+        
+        self.game = Game(external_screen=self.screen)
         player = self.game.level.player.sprites()[0]
         
         # Reset player physics and state
         player.velocity_x = 0
         player.velocity_y = 0
         player.previous_pos = (player.rect.x, player.rect.y)
-        player.on_ground = False  # Will be updated in first collision check
+        player.on_ground = False
         player.on_left = False
         player.on_right = False
         player.on_ceiling = False
         
-        # Force an initial collision check
+        # Force initial collision check
         self.game.level.vertical_movement_collision()
         self.game.level.horizontal_movement_collision()
         
-        # Get initial player position (adjusted for world shift)
+        # Get initial player position
         player_position = self.game.level.get_position()
         self.player_x = player_position[0]
         self.player_y = player_position[1]
@@ -90,158 +106,135 @@ class PlatformerEnv(gym.Env):
         self.previous_x = self.player_x
         self.total_reward = 0
         
-        # Calculate nearest obstacle/gap positions
-        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list_1]
+        # Calculate nearest obstacles
+        observation = self._get_obs()
+        
+        return observation, {}
 
-        # Initialize variables for the two nearest points
-        nearest_1 = None
-        nearest_2 = None
-        dist_1 = float('inf')  # Smallest distance
-        dist_2 = float('inf')  # Second smallest distance
+
+    def _get_obs(self):
+        """Helper method to get current observation"""
+        player_position = self.game.level.get_position()
+        player_state = self.game.level.get_player_state()
+        collision_info = self.game.level.check_on_ground()
+        
+        # Calculate relative positions of obstacles
+        result1 = [(a - player_position[0], b - player_position[1]) for a, b in self.list_1]
+        
+        # Find two nearest obstacles to the right
+        nearest_1 = (0, 0)
+        nearest_2 = (0, 0)
+        dist_1 = float('inf')
+        dist_2 = float('inf')
 
         for (dx, dy), (orig_x, orig_y) in zip(result1, self.list_1):
-            if orig_x > self.player_x:  # Only consider obstacles to the right
-                distance = dx**2 + dy**2  # Squared distance
-
+            if orig_x > player_position[0]:  # Only consider obstacles to the right
+                distance = dx**2 + dy**2
                 if distance < dist_1:
-                    # Shift first nearest to second nearest
-                    nearest_2, dist_2 = nearest_1, dist_1
-                    # Update first nearest
-                    nearest_1 = (dx, orig_y - self.player_y)
+                    nearest_2 = nearest_1
+                    dist_2 = dist_1
+                    nearest_1 = (dx, orig_y - player_position[1])
                     dist_1 = distance
                 elif distance < dist_2:
-                    # Update second nearest
-                    nearest_2 = (dx, orig_y - self.player_y)
+                    nearest_2 = (dx, orig_y - player_position[1])
                     dist_2 = distance
 
-        # Default to first obstacle if no valid ones found
-        if nearest_1 is None and len(result1) > 0:
-            nearest_1 = (result1[0][0], self.list_1[0][1] - self.player_y)
-
-        if nearest_2 is None and len(result1) > 1:
-            nearest_2 = (result1[1][0], self.list_1[1][1] - self.player_y)
-
-        start_x, start_y = nearest_1 if nearest_1 else (0, 0)
-        second_x, second_y = nearest_2 if nearest_2 else (0, 0)
-        
-        # Return observation in Dict format matching observation_space
         return np.array([
-            self.player_x, self.player_y,           # Position (x, y)
-            player.velocity_x, player.velocity_y,   # Velocity (vx, vy)
-            int(player.on_ground),                  # Grounded status (binary)
-            start_x, start_y,
-            second_x, second_y                         # Next obstacle position
+            player_position[0], player_position[1],           # Position (x, y)
+            player_state['velocity'][0], player_state['velocity'][1],  # Velocity (vx, vy)
+            int(collision_info),                              # Grounded status
+            nearest_1[0], nearest_1[1],                      # Next obstacle 1
+            nearest_2[0], nearest_2[1]                       # Next obstacle 2
         ], dtype=np.float32)
 
     def step(self, action):
         """Apply action and update game state"""
-        previous_x = self.player_x  # Store the previous x-coordinate before the action
+        previous_x = self.player_x
+        
+        # Apply action
         self.game.level.player.sprites()[0].get_input(action)
-        # self._apply_action(action)
-
+        
+        # Run game logic
         self.game.run()
-        # Get updated player position
+        
+        # Get updated state
         player_position = self.game.level.get_position()
-        positions = self.game.level.get_position_of_start_and_goal()
         self.player_x = player_position[0]
         self.player_y = player_position[1]
-
-        # Compute relative positions
-        result1 = [(a - self.player_x, b - self.player_y) for a, b in self.list_1]
-
-        # Initialize variables for the two nearest points
-        nearest_1 = None
-        nearest_2 = None
-        dist_1 = float('inf')  # Smallest distance
-        dist_2 = float('inf')  # Second smallest distance
-
-        for i, (a, b) in enumerate(result1):  
-            distance = a ** 2 + b ** 2  # Squared distance to avoid sqrt computation
-
-            if a > 0 and self.list_1[i][0] > self.player_x:
-                if distance < dist_1:
-                    # Shift the first nearest point to second
-                    nearest_2, dist_2 = nearest_1, dist_1
-                    # Update first nearest
-                    nearest_1 = (a, self.list_1[i][1])
-                    dist_1 = distance
-                elif distance < dist_2:
-                    # Update second nearest if it is smaller than previous second nearest
-                    nearest_2 = (a, self.list_1[i][1])
-                    dist_2 = distance
-
-        collision_info = self.game.level.check_on_ground()
-        player_state = self.game.level.get_player_state()
-        #######################################  REWARD SYSYTEM  ####################################
+        positions = self.game.level.get_position_of_start_and_goal()
+        
+        # Calculate reward and done flag
         reward = 0
-        done = False
-
-        # 1. Progress reward (scaled by distance to goal)
-        progress = (self.player_x - previous_x) / 10.0  # Scale down
+        terminated = False
+        truncated = False
+        
+        # 1. Progress reward
+        progress = (self.player_x - previous_x) / 10.0
         reward += progress
-    
-        # 2. Small penalty for existing (encourages efficiency)
+        
+        # 2. Small penalty for existing
         reward -= 0.01
-
-        # 4. Reward/punishment for jumping
+        
+        # 3. Jump reward/punishment
         if action == 2:  # Jump action
+            collision_info = self.game.level.check_on_ground()
             if collision_info:
                 reward += 0.1  # Reward well-timed jumps
             else:
                 reward -= 0.2  # Punish spamming jump
-
-        if not collision_info and player_state['velocity'][1] < 0:  # Falling
+        
+        # 4. Falling penalty
+        player_state = self.game.level.get_player_state()
+        if not self.game.level.check_on_ground() and player_state['velocity'][1] < 0:
             reward -= 0.05
         
-        # Penalize falling down
+        # 5. Big penalty for falling in water
         if self.player_y > 700:
-            reward -= 20  # Big penalty for falling
-            print("Player fell into water! Restarting level...")
-            done = True
-            # self.reset()  # Reset level (instead of quitting)
-
-        # Reward for completing the level
+            reward -= 20
+            terminated = True
+        
+        # 6. Reward for completing level
         if self.player_x >= positions["goal"][0]:
-            reward += 100  # Bonus for completing the level
-            print("Level completed!")
-            done = True  # Stop episode
-
-        # Update previous_x to the current position
+            reward += 100
+            terminated = True
         
-
         self.total_reward += reward
-        Goal = positions["goal"][0]
-        # Get next obstacle info (from your existing code)
-        next_obstacle = [nearest_1[0],nearest_1[1]]
-        next_obstacle2 = [nearest_2[0],nearest_2[1]]
-        # print(f"{Goal} {player_state['position'][0]} {self.player_x}")
-        velocity = self.player_x - self.previous_x
-        print(f"{action} {Goal} {self.player_x} {self.player_y} {velocity} {player_state['velocity'][1]} {int(collision_info)} {reward} {self.total_reward} ")
-        self.previous_x = self.player_x
-
-        observation = np.array([
-            self.player_x, self.player_y,   # Position (x, y)
-            velocity, player_state['velocity'][1],   # Velocity (vx, vy)
-            int(collision_info),                           # Grounded status (binary)
-            next_obstacle[0], next_obstacle[1],
-            next_obstacle2[0], next_obstacle2[1]                          # Next obstacle position
-        ], dtype=np.float32)
-
-        return observation, reward, done, {}
-
-    def render(self, mode="human"):
-        """Render a single frame of the game"""
-
-        self.screen.fill('grey')  # Ensure background is set
         
-        self.game.run()  # Call the main game loop to render objects
+        # Get observation
+        observation = self._get_obs()
         
-        pygame.display.update()  # Refresh the screen
-        pygame.time.delay(60)  # Small delay for rendering
+        # Render if needed
+        if self.render_mode == "human":
+            self.render()
+        
+        return observation, reward, terminated, truncated, {}
+
+    def render(self):
+        """Render the environment"""
+        if self.render_mode == "human":
+            self.screen.fill('grey')
+            self.game.run()
+            pygame.display.update()
+            self.clock.tick(self.metadata["render_fps"])
+        elif self.render_mode == "rgb_array":
+            # Return RGB array for video recording
+            return pygame.surfarray.array3d(self.screen)
 
     def close(self):
         """Close the environment"""
-        pygame.quit()
+        if self.screen is not None:
+            pygame.quit()
 
 
+# At the bottom of game_env.py (after the PlatformerEnv class definition)
+def register_env():
+    """Register the custom environment"""
+    if 'CustomPlatformer-v0' not in gym.envs.registry:
+        gym.register(
+            id='CustomPlatformer-v0',
+            entry_point='game_env:PlatformerEnv',
+            max_episode_steps=1000,
+        )
 
+# Register the environment when the module is imported
+register_env()
