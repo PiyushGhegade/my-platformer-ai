@@ -1,14 +1,12 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
-from stable_baselines3.common.logger import configure
-from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecMonitor
 from stable_baselines3.common.callbacks import BaseCallback
 import os
 import numpy as np
-
-# Import your custom environment and ensure it's registered
 from game_env import PlatformerEnv, register_env
-register_env()  # Ensure environment is registered
+
+register_env()
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
     def __init__(self, check_freq: int, save_path: str, verbose: int = 1):
@@ -37,61 +35,62 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
         return True
 
 if __name__ == '__main__':
-    # Create log dir
-    log_dir = "./tensorboard_logs/"
+    # Setup
+    log_dir = "./ppo_tensorboard/"
     os.makedirs(log_dir, exist_ok=True)
     
-    # Create and verify environment
-    try:
-        env = gym.make('CustomPlatformer-v0', render_mode=None)
-        print("Successfully created CustomPlatformer-v0 environment")
-    except gym.error.Error as e:
-        print(f"Failed to create environment: {e}")
-        raise
-    
-    # Vectorize environment
+    # Create environment with frame stacking
+    env = gym.make('CustomPlatformer-v0', render_mode=None)
     env = DummyVecEnv([lambda: env])
+    env = VecFrameStack(env, n_stack=4)  # 4-frame stack
     env = VecMonitor(env, log_dir)
     
-    # Configure logger
-    new_logger = configure(log_dir, ['stdout', 'tensorboard'])
-    
-    # Initialize PPO model
+    # Hyperparameters optimized for grid observations
     model = PPO(
-        "MlpPolicy",
+        "MultiInputPolicy",  # Changed from MlpPolicy!
         env,
         verbose=1,
-        learning_rate=0.00003,
+        learning_rate=3e-4,
         n_steps=2048,
-        batch_size=64,
+        batch_size=128,
+        n_epochs=10,
         gamma=0.99,
-        tensorboard_log=log_dir
+        gae_lambda=0.95,
+        clip_range=0.2,
+        ent_coef=0.01,
+        tensorboard_log=log_dir,
+        policy_kwargs=dict(
+            net_arch=dict(pi=[256, 256], vf=[256, 256])  # Larger network
+        )
     )
     
-    # Set logger
-    model.set_logger(new_logger)
-    
-    # Create callback
+    # Callback
     callback = SaveOnBestTrainingRewardCallback(check_freq=1000, save_path=log_dir)
     
+    # Training
     print("------------- Start Learning -------------")
     try:
-        model.learn(total_timesteps=500000, callback=callback, tb_log_name="PPO")
+        model.learn(
+            total_timesteps=1_000_000,  # Increased from 500k
+            callback=callback,
+            tb_log_name="PPO",
+            progress_bar=True
+        )
     except KeyboardInterrupt:
-        print("Training interrupted by user")
+        print("Training interrupted - saving model...")
+        model.save("ppo_interrupted")
     
-    # Save final model
-    model.save("../model/Atul")
-    print("------------- Done Learning -------------")
+    # Save and test
+    model.save("ppo_platformer")
+    print("------------- Training Complete -------------")
     
-    # Test the trained model
+    # Testing with rendering
     test_env = gym.make('CustomPlatformer-v0', render_mode='human')
-    obs, _ = test_env.reset()
+    obs = test_env.reset()[0]
     for _ in range(1000):
-        action, _states = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = test_env.step(action)
+        action, _ = model.predict(obs, deterministic=True)
+        obs, _, terminated, truncated, _ = test_env.step(action)
         test_env.render()
         if terminated or truncated:
-            obs, _ = test_env.reset()
-    
+            obs = test_env.reset()[0]
     test_env.close()

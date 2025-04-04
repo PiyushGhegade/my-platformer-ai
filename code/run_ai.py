@@ -1,48 +1,53 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
 from game_env import PlatformerEnv
-import sys
 import numpy as np
 
-# Load trained model
-model = PPO.load(f"../model/{sys.argv[1]}")
+# Load the trained model
+model = PPO.load("ppo_platformer")
 
-# Create environment
-env = PlatformerEnv(render_mode='human')  # Explicitly set render mode
+# Verify the model's observation space
+print("Model's observation space:", model.observation_space)
 
-# Run indefinitely
+# Create the custom environment
+env = PlatformerEnv(render_mode='human')
+
+# Run episodes indefinitely
 while True:
-    # Reset the environment and get initial observation
-    obs, _ = env.reset()  # Note: Gymnasium returns (observation, info)
+    # Reset the environment and get the initial observation
+    obs_dict, _ = env.reset()
     
-    # Ensure observation is a numpy array
-    if isinstance(obs, tuple):
-        obs = obs[0]  # Take just the observation part
-    obs = np.array(obs, dtype=np.float32)  # Convert to numpy array if not already
+    # Convert observation to match what the model expects
+    # The model expects (15, 11, 4) but environment provides (15, 11, 1)
+    # We'll replicate the single channel to 4 channels
+    original_grid = np.array(obs_dict["grid"], dtype=np.float32)
+    expanded_grid = np.repeat(original_grid, 4, axis=-1)  # Now shape (15, 11, 4)
     
-    # Render immediately after reset
-    env.render()
-
+    obs = {
+        "grid": expanded_grid
+    }
+    
     done = False
 
+    # Run the episode
     while not done:
-        # Predict the next action
-        action, _states = model.predict(obs, deterministic=True)
-        
-        # Take the action and get the updated observation
-        obs, reward, terminated, truncated, _ = env.step(action)
+        # Predict the action
+        action, _ = model.predict(obs, deterministic=True)
+
+        # Take action in the environment
+        next_obs_dict, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
-        
-        # Ensure observation remains in correct format
-        obs = np.array(obs, dtype=np.float32)
-        
-        # Render the environment
+
+        # Prepare next observation (again expanding to 4 channels)
+        original_grid = np.array(next_obs_dict["grid"], dtype=np.float32)
+        obs = {
+            "grid": np.repeat(original_grid, 4, axis=-1)
+        }
+
+        # Render the game
         env.render()
 
     print("Episode completed. Resetting environment...")
-    # Add a small delay if needed
-    # import time
-    # time.sleep(1)
 
-# Close the environment (unreachable in this loop)
+# Close environment (never reached due to infinite loop)
 env.close()
