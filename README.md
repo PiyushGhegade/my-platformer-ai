@@ -46,8 +46,56 @@ This project aims to develop an AI model that learns to play a **customized 2D g
 
 ---
 
-## **How to Run**  
+## Clone the Repository
 
-- Instructions on how to run the project will be provided upon completion.
+First, clone the repository using HTTPS:
+
+```bash
+git clone https://github.com/PiyushGhegade/my-platformer-ai.git
+cd my-platformer-ai
+```
+
+## Setup Instructions
+
+1. **Create a virtual environment** using conda:
+
+    ```bash
+    conda create -n myenv python=3.10
+    ```
+
+2. **Activate the virtual environment**:
+
+   conda activate myenv
+
+3. **Install the dependencies** from `requirements.txt`:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. **Navigate to the code directory**:
+
+    ```bash
+    cd code
+    ```
+
+## Running the Game
+
+- **To run the game manually**:
+
+    ```bash
+    python run.py manual
+    ```
+
+- **To let an AI model play the game**:
+
+    ```bash
+    python run.py ai <model_name>
+    ```
+
+    Replace `<model_name>` with the name of your trained model file.
 
 ---
+
+> Instructions on how to train the model and additional details will be provided upon completion.
+
