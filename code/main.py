@@ -9,6 +9,7 @@ class Game:
         """Initialize the game. Accepts an external screen if running from Gym."""
         self.max_health = 100
         self.cur_health = 100
+        self.enemy_killed = 0
         self.coins = 0
         
         # Audio 
@@ -18,7 +19,7 @@ class Game:
         self.screen = external_screen if external_screen else pygame.display.set_mode((screen_width, screen_height))
         
         # Directly start cur_level
-        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)
+        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health , self.number_of_enemy_killed)
         self.status = 'level'
         self.level_bg_music.play(loops=-1)
 
@@ -31,11 +32,15 @@ class Game:
     def change_health(self, amount):
         self.cur_health += amount
 
+    def number_of_enemy_killed(self, amount):
+        self.enemy_killed += amount
+
     def reset(self):
         """Restart the level instead of quitting the game"""
         self.cur_health = 100  # Reset health
         self.coins = 0  # Reset coins
-        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)  # Restart cur_level
+        self.enemy_killed = 0
+        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health, self.number_of_enemy_killed)  # Restart cur_level
         self.status = 'level'
 
     def run(self):

@@ -16,37 +16,7 @@ gym.register(
     max_episode_steps=1000,
 )
 
-def extract_cell_positions(csv_file, set_1):
-    with open(csv_file, "r") as f:
-        lines = f.readlines()
-    
-    list_1 = []
-    
-    for row, line in enumerate(lines):
-        values = list(map(int, line.strip().split(",")))
-        for col, value in enumerate(values):
-            if value in set_1:
-                list_1.append((col*tile_size, 800 - row*tile_size))
-    
-    return list_1
-
 import csv
-
-def is_there_ground_below_it(csv_file: str, col_no: int, row_no: int) -> bool:
-    with open(csv_file, 'r') as file:
-        reader = list(csv.reader(file))  
-
-        
-        for i in range(row_no, len(reader)):
-            row = reader[i]
-            if col_no < len(row):
-                try:
-                    value = int(row[col_no])
-                    if value != -1:
-                        return 1  
-                except ValueError:
-                    continue  
-    return 0  
 
 
 class PlatformerEnv(gym.Env):
@@ -58,23 +28,19 @@ class PlatformerEnv(gym.Env):
         super(PlatformerEnv, self).__init__()
         
         self.render_mode = render_mode
-        self.terrain = self._load_terrain(f"../levels/{cur_level}/level_{cur_level}_terrain.csv")
+        self.terrain = self._load_map(f"../levels/{cur_level}/level_{cur_level}_terrain.csv")
+        self.front_tree = self._load_map(f"../levels/{cur_level}/level_{cur_level}_fg_palms.csv")
+        self.crates = self._load_map(f"../levels/{cur_level}/level_{cur_level}_crates.csv")
+        self.coins = self._load_map(f"../levels/{cur_level}/level_{cur_level}_coins.csv")
         # Information for Edges Detection
         self.csv_file = f"../levels/{cur_level}/level_{cur_level}_terrain.csv"
-        set_1 = {0, 2, 3, 12, 14}
-        self.list_1 = extract_cell_positions(self.csv_file, set_1)
-        self.list_1 = sorted(self.list_1, key=lambda item: item[0])
 
         # Define action space (0 = Left, 1 = Right, 2 = Jump, 3 = No action)
         self.action_space = spaces.Discrete(4)
 
-        # Observation space: (player_x, player_y, velocity_x, velocity_y, on_ground, next_obstacle_x, next_obstacle_y, next_obstacle2_x, next_obstacle2_y)
-        # self.observation_space = spaces.Box(
-        #     low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32
-        # )
-
         self.observation_space = spaces.Dict({
-            "grid": spaces.Box(low=0, high=1, shape=(15, 11, 1), dtype=np.float32)
+            "grid": spaces.Box(low=0, high=1, shape=(15, 11, 1), dtype=np.float32),
+            "grid_enemy": spaces.Box(low=0, high=1, shape=(15, 11, 1), dtype=np.float32)
         })
 
         # Initialize pygame only once
@@ -95,8 +61,12 @@ class PlatformerEnv(gym.Env):
         self.player_y = 0
         self.previous_x = 0
         self.total_reward = 0
+        self.last_coin_count = 0
+        self.last_kill_count = 0
+        self.last_health = 0
 
-    def _load_terrain(self, filepath):
+
+    def _load_map(self, filepath):
         """Load terrain CSV into 2D numpy array"""
         with open(filepath, 'r') as f:
             reader = csv.reader(f)
@@ -145,13 +115,15 @@ class PlatformerEnv(gym.Env):
     def _get_obs(self):
         """Helper method to get current observation"""
         player_position = self.game.level.get_position()
-        player_state = self.game.level.get_player_state()
-        collision_info = self.game.level.check_on_ground()
+        enemies_position = self.game.level.get_enemy_positions()
         ################################### SECOND APPROACH #####################################
         grid_x = int(player_position[0] / tile_size)
         grid_y = len(self.terrain) - 1 - int(player_position[1] / tile_size)
 
         obs_grid = np.zeros((15, 11), dtype=np.float32)
+        obs_grid_enemy = np.zeros((15, 11), dtype=np.float32)
+
+
 
         for dy in range(-5, 10):
             for dx in range(-5, 6):
@@ -161,65 +133,35 @@ class PlatformerEnv(gym.Env):
                 if 0 <= level_x < len(self.terrain[0]) and 0 <= level_y < len(self.terrain):
                     if self.terrain[level_y][level_x] != -1:  # Platform exists
                         obs_grid[dy+5, dx+5] = 1.0  # Normalized to 1.0
+                    if self.front_tree[level_y][level_x] != -1:
+                        obs_grid[dy+5, dx+5] = 1.0
+                    if self.crates[level_y][level_x] != -1:
+                        obs_grid[dy+5, dx+5] = 1.0
+                    if self.coins[level_y][level_x] == 1:
+                        obs_grid[dy+5, dx+5] = 2.0
+                    if self.coins[level_y][level_x] == 0:
+                        obs_grid[dy+5, dx+5] = 3.0
 
-        # # Calculate relative positions of obstacles
-        # result1 = [(a - player_position[0], b - player_position[1]) for a, b in self.list_1]
-        
-        # # Find two nearest obstacles to the right
-        # nearest_1 = (0, 0)
-        # nearest_2 = (0, 0)
-        # dist_1 = float('inf')
-        # dist_2 = float('inf')
+                for (enemy_x, enemy_y) in enemies_position:
+                    if level_x == enemy_x and level_y == enemy_y:
+                        obs_grid_enemy[dy+5, dx+5] = 1.0
+                              
 
-        # for (dx, dy), (orig_x, orig_y) in zip(result1, self.list_1):
-        #     if orig_x > player_position[0]:  # Only consider obstacles to the right
-        #         distance = dx**2 + dy**2
-        #         if distance < dist_1:
-        #             nearest_2 = nearest_1
-        #             dist_2 = dist_1
-        #             nearest_1 = (dx, orig_y - player_position[1])
-        #             dist_1 = distance
-        #         elif distance < dist_2:
-        #             nearest_2 = (dx, orig_y - player_position[1])
-        #             dist_2 = distance
-
-        # is_there_ground_or_not = 1
-        # # Is there a ground or not below it or not
-        # round_off_x = int(player_position[0]/64)
-        # round_off_y = int(player_position[1]/64)
-
-        # is_there_ground_or_not = is_there_ground_below_it(self.csv_file,round_off_x,round_off_y)
-
-
-        print(f"{player_position[0]} {player_position[1]} {player_position[0]-self.previous_x} {player_state['velocity'][1]}")
+        # print(f"{player_position[0]} {player_position[1]} {player_position[0]-self.previous_x} {player_state['velocity'][1]}")
         # print(obs_grid)
-        # return np.array([
-        #     player_position[0], player_position[1],           # Position (x, y)
-        #     player_position[0]-self.previous_x, player_state['velocity'][1],  # Velocity (vx, vy)
-        #     int(collision_info),
-        #     is_there_ground_or_not,                              # Grounded status
-        #     nearest_1[0], nearest_1[1],                      # Next obstacle 1
-        #     nearest_2[0], nearest_2[1]                       # Next obstacle 2
-        # ], dtype=np.float32)
+        # print(obs_grid_enemy)
         obs_grid = np.expand_dims(obs_grid, axis=-1)  # shape (15, 11, 1)
-        obs_vector = np.array([
-            player_state['velocity'][0] / 10.0,
-            player_state['velocity'][1] / 15.0,
-            float(self.game.level.check_on_ground())
-        ], dtype=np.float32)
-
+        obs_grid_enemy = np.expand_dims(obs_grid_enemy, axis=-1)  # shape (15, 11, 1)
         return {
             "grid": obs_grid,
+            "grid_enemy": obs_grid_enemy
         }
 
     def step(self, action):
-        """Apply action and update game state"""
         previous_x = self.player_x
         
-        # Apply action
+        # Apply action and run game logic
         self.game.level.player.sprites()[0].get_input(action)
-        
-        # Run game logic
         self.game.run()
         
         # Get updated state
@@ -228,80 +170,66 @@ class PlatformerEnv(gym.Env):
         self.player_y = player_position[1]
         positions = self.game.level.get_position_of_start_and_goal()
         
-        # Calculate reward and done flag
+        # Initialize rewards and flags
         reward = 0
         terminated = False
         truncated = False
         
-        # 1. Progress reward
-        progress = (self.player_x - previous_x) / 10.0
-        reward += progress
+        # 1. Progress reward (normalized for FPS)
+        progress = (self.player_x - previous_x)
+        if progress > 0:
+            reward += progress * 0.05  # Reduced multiplier for high FPS
         
-        # 2. Small penalty for existing
-        reward -= 0.01
+        # 2. Tiny time penalty (scaled for FPS)
+        reward -= 0.001  # Much smaller penalty per frame
         
-        # 3. Jump reward/punishment
+        # 3. Jump mechanics (less frequent rewards)
         if action == 2:  # Jump action
             collision_info = self.game.level.check_on_ground()
-            if collision_info:
-                reward += 0.1  # Reward well-timed jumps
-            else:
-                reward -= 0.2  # Punish spamming jump
+            if collision_info:  # Only reward successful landings, not takeoffs
+                reward += 0.05  # Smaller jump reward
+            # No penalty for jumping in air to encourage exploration
         
-        # 4. Falling penalty
-        player_state = self.game.level.get_player_state()
-        if not self.game.level.check_on_ground() and player_state['velocity'][1] < 0:
-            reward -= 0.05
         
-        # 5. Big penalty for falling in water
-        if self.player_y > 700:
-            reward -= 20
-            print("Fell Into Water!!")
+        # 5. Terminal states (keep impactful)
+        if self.player_y > 700:  # Fell in water
+            print("Fell in water !!!")
+            reward -= 5  # Reduced but still significant
             terminated = True
         
-        # 6. Reward for completing level
+        # 6. Completion reward (keep large but scale progress rewards smaller)
         if self.player_x >= positions["goal"][0]:
-            reward += 100
-            print("Level Completed !!!")
+            print("Level complete!!!")
+            reward += 100  # Kept large but balanced with other rewards
             terminated = True
+        
+        # 7. Collectibles (accumulated rewards)
+        new_coins = self.game.coins - self.last_coin_count
+        if new_coins > 0:
+            reward += new_coins * 0.1  # Reward per coin collected
+            self.last_coin_count = self.game.coins
+        
+        # 8. Combat (event-based rewards)
+        new_kills = self.game.enemy_killed - self.last_kill_count
+        if new_kills > 0:
+            reward += new_kills * 1.0  # Significant reward per kill
+            self.last_kill_count = self.game.enemy_killed
+        
+        # 9. Health (change-based penalty)
+        health_lost = (self.last_health - self.game.cur_health)
+        if health_lost > 0:
+            reward -= health_lost * 0.5  # Penalty when actually losing health
+        self.last_health = self.game.cur_health
+        
+        # 10. Stuck detection (frame-independent)
+        if abs(self.player_x - previous_x) < 0.1 and self.game.level.check_on_ground():
+            reward -= 0.01  # Small penalty for being stuck
         
         self.total_reward += reward
         self.previous_x = self.player_x
-        # Get observation
-        observation = self._get_obs()
         
-        # Render if needed
-        if self.render_mode == "human":
-            self.render()
-        
-        return observation, reward, terminated, truncated, {}
+        return self._get_obs(), reward, terminated, truncated, {}
 
-    def render_observation(self, obs=None):
-        """Debug visualization of the agent's observation"""
-        if obs is None:
-            obs = self._get_obs()
-        
-        grid = obs[:165].reshape(15, 11)
-        player_state = obs[165:]
-        
-        print("\n=== Agent's Observation ===")
-        
-        # Print grid with player at center
-        for i, row in enumerate(grid):
-            row_str = []
-            for j, val in enumerate(row):
-                if i == 5 and j == 5:  # Player position
-                    row_str.append("P")
-                else:
-                    row_str.append("█" if val > 0.5 else ".")
-            print(" ".join(row_str))
-        
-        # Print player state
-        print(f"\nPlayer State:")
-        print(f"X Velocity: {player_state[0]*10:.1f} (normalized: {player_state[0]:.2f})")
-        print(f"Y Velocity: {player_state[1]*15:.1f} (normalized: {player_state[1]:.2f})")
-        print(f"Grounded: {'YES' if player_state[2] > 0.5 else 'NO'}")
-        print("="*30)
 
     def render(self):
         """Render the environment"""

@@ -10,7 +10,7 @@ from game_data import levels
 from ai import AI
 
 class Level:
-	def __init__(self,current_level,surface,change_coins,change_health):
+	def __init__(self,current_level,surface,change_coins,change_health,number_of_enemy_killed):
 
 		# general setup
 		self.display_surface = surface
@@ -41,6 +41,7 @@ class Level:
 
 		# user interface 
 		self.change_coins = change_coins
+		self.number_of_enemy_killed = number_of_enemy_killed
 
 		# dust 
 		self.dust_sprite = pygame.sprite.GroupSingle()
@@ -93,6 +94,9 @@ class Level:
 
 	def change_health(self, amount):
 		self.cur_health += amount
+
+	def number_of_enemy_killed(self, amount):
+		self.enemy_killed += amount
 		
 	def create_tile_group(self,layout,type):
 		sprite_group = pygame.sprite.Group()
@@ -227,6 +231,32 @@ class Level:
 		# Accumulate world shift over time
 		self.total_shift += self.world_shift
 
+	def check_player_ground(self):
+		"""Check if player is standing on ground (called from Level's run method)"""
+		player = self.player.sprite
+		self.on_ground = False  # Reset before checking
+        
+        # Create a small rect below player's feet
+		ground_check_rect = pygame.Rect(
+            player.collision_rect.bottomleft[0] + 5,
+            player.collision_rect.bottomleft[1],
+            player.collision_rect.width - 10,
+            5  # Small height for ground check
+        )
+        
+        # Check against all collidable terrain
+		collidable_sprites = (self.terrain_sprites.sprites() + 
+                            self.crate_sprites.sprites() + 
+                            self.fg_palm_sprites.sprites())
+        
+		for sprite in collidable_sprites:
+			if ground_check_rect.colliderect(sprite.rect):
+				self.on_ground = True
+				break
+	
+	def check_on_ground(self):
+		return self.on_ground
+
 	def get_player_on_ground(self):
 		if self.player.sprite.on_ground:
 			self.player_on_ground = True
@@ -247,16 +277,6 @@ class Level:
 		# 	self.change_health(-101)
 		pass
 
-	# def get_collision_info(self):
-	# 	"""Returns important collision information for RL"""
-	# 	player = self.player.sprite
-	# 	return {
-    #         'on_ground': player.on_ground,
-    #         'on_left': player.on_left,
-    #         'on_right': player.on_right,
-    #         'on_ceiling': player.on_ceiling,
-    #         'terrain_sprites': self.terrain_sprites  # Pass terrain for ground check
-    #     }
 	
 	def get_player_state(self):
 		"""Returns comprehensive player state"""
@@ -294,6 +314,7 @@ class Level:
 					explosion_sprite = ParticleEffect(enemy.rect.center,'explosion')
 					self.explosion_sprites.add(explosion_sprite)
 					enemy.kill()
+					self.number_of_enemy_killed(1)
 				else:
 					self.player.sprite.get_damage()
 
@@ -301,34 +322,18 @@ class Level:
 		player = self.player.sprite  # Access the actual Player instance
 		return (self.player.sprite.rect.x - self.total_shift, player.rect.top, self.world_shift)
 	
+	def get_enemy_positions(self):
+		"""Returns a list of all enemy positions in the level"""
+		enemy_positions = []
+		for enemy in self.enemy_sprites.sprites():
+			# Get the enemy's position adjusted by world_shift (relative to screen)
+			adjusted_x = enemy.rect.x - self.total_shift
+			enemy_positions.append((int(adjusted_x / tile_size), int(enemy.rect.y / tile_size)))
+		return enemy_positions
+	
 	def get_position_of_start_and_goal(self):
 		return {"player_start": self.player_start_pos, "goal": self.goal_pos}
 	
-	def check_player_ground(self):
-		"""Check if player is standing on ground (called from Level's run method)"""
-		player = self.player.sprite
-		self.on_ground = False  # Reset before checking
-        
-        # Create a small rect below player's feet
-		ground_check_rect = pygame.Rect(
-            player.collision_rect.bottomleft[0] + 5,
-            player.collision_rect.bottomleft[1],
-            player.collision_rect.width - 10,
-            5  # Small height for ground check
-        )
-        
-        # Check against all collidable terrain
-		collidable_sprites = (self.terrain_sprites.sprites() + 
-                            self.crate_sprites.sprites() + 
-                            self.fg_palm_sprites.sprites())
-        
-		for sprite in collidable_sprites:
-			if ground_check_rect.colliderect(sprite.rect):
-				self.on_ground = True
-				break
-	
-	def check_on_ground(self):
-		return self.on_ground
 	
 	def run(self):
 		# run the entire game / level 

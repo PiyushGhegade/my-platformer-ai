@@ -31,12 +31,12 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
                     self.best_mean_reward = mean_reward
                     if self.verbose > 0:
                         print(f"Saving new best model to {self.save_path}")
-                    self.model.save(os.path.join(self.save_path, "best_model"))
+                    self.model.save(os.path.join(self.save_path, "best_model_improved"))
         return True
 
 if __name__ == '__main__':
     # Setup
-    log_dir = "./ppo_tensorboard/"
+    log_dir = "./ppo_tensorboard_improved/"
     os.makedirs(log_dir, exist_ok=True)
     
     # Create environment with frame stacking
@@ -78,10 +78,10 @@ if __name__ == '__main__':
         )
     except KeyboardInterrupt:
         print("Training interrupted - saving model...")
-        model.save("ppo_interrupted")
+        model.save("ppo_interrupted_improved")
     
     # Save and test
-    model.save("ppo_platformer")
+    model.save("ppo_platformer_improved")
     print("------------- Training Complete -------------")
     
     # Testing with rendering
