@@ -191,7 +191,7 @@ class PlatformerEnv(gym.Env):
         # is_there_ground_or_not = is_there_ground_below_it(self.csv_file,round_off_x,round_off_y)
 
 
-        print(f"{player_position[0]} {player_position[1]} {player_position[0]-self.previous_x} {player_state['velocity'][1]}")
+        # print(f"{player_position[0]} {player_position[1]} {player_position[0]-self.previous_x} {player_state['velocity'][1]}")
         # print(obs_grid)
         # return np.array([
         #     player_position[0], player_position[1],           # Position (x, y)
