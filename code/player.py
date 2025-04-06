@@ -1,7 +1,6 @@
 import pygame 
 from support import import_folder
 from math import sin
-from ai import AI
 import sys
 from settings import control_ai
 

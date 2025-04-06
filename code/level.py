@@ -1,13 +1,13 @@
 import pygame 
 from support import import_csv_layout, import_cut_graphics
-from settings import tile_size, screen_height, screen_width
+from settings import tile_size, screen_height, screen_width, control_ai
 from tiles import Tile, StaticTile, Crate, Coin, Palm
 from enemy import Enemy
 from decoration import Sky, Water, Clouds
 from player import Player
 from particles import ParticleEffect
 from game_data import levels
-from ai import AI
+import sys
 
 class Level:
 	def __init__(self,current_level,surface,change_coins,change_health):
@@ -33,6 +33,7 @@ class Level:
 		self.player = pygame.sprite.GroupSingle()
 		self.goal = pygame.sprite.GroupSingle()
 		self.player_setup(player_layout,change_health)
+		
 
 		# Now that player is set up, initialize AI
 		# self.ai = AI(self)
@@ -243,20 +244,12 @@ class Level:
 			self.dust_sprite.add(fall_dust_particle)
 
 	def check_death(self):
-		# if self.player.sprite.rect.top > screen_height:
-		# 	self.change_health(-101)
-		pass
-
-	# def get_collision_info(self):
-	# 	"""Returns important collision information for RL"""
-	# 	player = self.player.sprite
-	# 	return {
-    #         'on_ground': player.on_ground,
-    #         'on_left': player.on_left,
-    #         'on_right': player.on_right,
-    #         'on_ceiling': player.on_ceiling,
-    #         'terrain_sprites': self.terrain_sprites  # Pass terrain for ground check
-    #     }
+		if(control_ai==None):
+			if self.player.sprite.rect.top > screen_height:
+				print("Player has fell in water!")
+				sys.exit()
+		else:
+			pass
 	
 	def get_player_state(self):
 		"""Returns comprehensive player state"""
@@ -269,9 +262,14 @@ class Level:
         }
 
 	def check_win(self):
-		# if pygame.sprite.spritecollide(self.player.sprite,self.goal,False):
-		# 	self.create_overworld(self.current_level,self.new_max_level)
-		pass
+		if(control_ai==None):
+				postions = self.get_position()
+				positions_of_goal = self.get_position_of_start_and_goal()
+				if positions_of_goal['goal'][0] <= postions[0]:
+					print("Player has reached the goal!")
+					sys.exit()
+		else:
+			pass
 			
 	def check_coin_collisions(self):
 		collided_coins = pygame.sprite.spritecollide(self.player.sprite,self.coin_sprites,True)

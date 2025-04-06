@@ -2,9 +2,10 @@ import gymnasium as gym
 from stable_baselines3 import PPO
 from game_env import PlatformerEnv
 import numpy as np
+import sys
 
 # Load the trained model
-model = PPO.load("ppo_platformer")
+model = PPO.load(f"../model/{sys.argv[1]}")
 
 # Verify the model's observation space
 print("Model's observation space:", model.observation_space)

@@ -36,7 +36,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
 
 if __name__ == '__main__':
     # Setup
-    log_dir = "./ppo_tensorboard/"
+    log_dir = "../tensorboard_activity/ppo_tensorboard/"
     os.makedirs(log_dir, exist_ok=True)
     
     # Create environment with frame stacking
@@ -78,10 +78,10 @@ if __name__ == '__main__':
         )
     except KeyboardInterrupt:
         print("Training interrupted - saving model...")
-        model.save("ppo_interrupted")
+        model.save("../model/ppo_interrupted")
     
     # Save and test
-    model.save("ppo_platformer")
+    model.save("../model/ppo_platformer")
     print("------------- Training Complete -------------")
     
     # Testing with rendering
