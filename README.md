@@ -82,6 +82,14 @@ cd my-platformer-ai
     ```
 
 ## Running the Game
+  #### 🔧 Configuration
+
+To play the game manually, make following changes in `settings.py`:
+  
+  ```python
+  control_ai = None
+  ```
+
 
 - **To run the game manually**:
 
@@ -96,6 +104,11 @@ cd my-platformer-ai
     ```
 
     Replace `<model_name>` with the name of your trained model file.
+
+  Example:
+    ```bash
+    python run.py ai ppo_platformwer
+    ```
 
 ---
 
