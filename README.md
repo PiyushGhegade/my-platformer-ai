@@ -65,15 +65,17 @@ cd my-platformer-ai
 
 2. **Activate the virtual environment**:
 
+   ```
    conda activate myenv
+   ```
 
-3. **Install the dependencies** from `requirements.txt`:
+4. **Install the dependencies** from `requirements.txt`:
 
     ```bash
     pip install -r requirements.txt
     ```
 
-4. **Navigate to the code directory**:
+5. **Navigate to the code directory**:
 
     ```bash
     cd code
