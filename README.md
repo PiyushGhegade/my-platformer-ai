@@ -112,5 +112,4 @@ To play the game manually, make following changes in `settings.py`:
 
 ---
 
-> Instructions on how to train the model and additional details will be provided upon completion.
 
