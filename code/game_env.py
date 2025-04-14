@@ -3,11 +3,12 @@ from gymnasium import spaces
 import numpy as np
 import pygame
 import sys
-from settings import *
+from settings import tile_size, screen_width, screen_height, cur_level
 from level import Level
 from player import Player
 from ui import UI
 from main import Game  # Import Game class
+import random
 
 # Register the environment
 gym.register(
@@ -58,6 +59,9 @@ class PlatformerEnv(gym.Env):
         super(PlatformerEnv, self).__init__()
         
         self.render_mode = render_mode
+        # cur_level = random.randint(0, 3)
+        self.terrain = None
+        self.csv_file = None
         self.terrain = self._load_terrain(f"../levels/{cur_level}/level_{cur_level}_terrain.csv")
         # Information for Edges Detection
         self.csv_file = f"../levels/{cur_level}/level_{cur_level}_terrain.csv"
@@ -112,7 +116,10 @@ class PlatformerEnv(gym.Env):
         
         self.game = Game(external_screen=self.screen)
         player = self.game.level.player.sprites()[0]
-        
+        cur_level = random.randint(0, 3)
+        self.csv_file = f"../levels/{cur_level}/level_{cur_level}_terrain.csv"
+        self.terrain = self._load_terrain(self.csv_file)
+        print(f"Resetting to level {cur_level}")
         # Reset player physics and state
         player.velocity_x = 0
         player.velocity_y = 0
@@ -154,13 +161,13 @@ class PlatformerEnv(gym.Env):
         obs_grid = np.zeros((15, 11), dtype=np.float32)
 
         for dy in range(-5, 10):
-            for dx in range(-5, 6):
+            for dx in range(-1, 10):
                 level_x = grid_x + dx
                 level_y = grid_y + dy
                 
                 if 0 <= level_x < len(self.terrain[0]) and 0 <= level_y < len(self.terrain):
                     if self.terrain[level_y][level_x] != -1:  # Platform exists
-                        obs_grid[dy+5, dx+5] = 1.0  # Normalized to 1.0
+                        obs_grid[dy+5, dx+1] = 1.0  # Normalized to 1.0
 
         # # Calculate relative positions of obstacles
         # result1 = [(a - player_position[0], b - player_position[1]) for a, b in self.list_1]
@@ -190,8 +197,8 @@ class PlatformerEnv(gym.Env):
 
         # is_there_ground_or_not = is_there_ground_below_it(self.csv_file,round_off_x,round_off_y)
 
-
-        # print(f"{player_position[0]} {player_position[1]} {player_position[0]-self.previous_x} {player_state['velocity'][1]}")
+        goal = self.game.level.get_position_of_start_and_goal()
+        print(f"{player_position[0]} {player_position[1]} {goal['goal'][0]} {goal['goal'][1]}")
         # print(obs_grid)
         # return np.array([
         #     player_position[0], player_position[1],           # Position (x, y)
@@ -202,11 +209,6 @@ class PlatformerEnv(gym.Env):
         #     nearest_2[0], nearest_2[1]                       # Next obstacle 2
         # ], dtype=np.float32)
         obs_grid = np.expand_dims(obs_grid, axis=-1)  # shape (15, 11, 1)
-        obs_vector = np.array([
-            player_state['velocity'][0] / 10.0,
-            player_state['velocity'][1] / 15.0,
-            float(self.game.level.check_on_ground())
-        ], dtype=np.float32)
 
         return {
             "grid": obs_grid,
@@ -262,7 +264,7 @@ class PlatformerEnv(gym.Env):
         # 6. Reward for completing level
         if self.player_x >= positions["goal"][0]:
             reward += 100
-            print("Level Completed !!!")
+            print("Level Completed {cur_level} !!!")
             terminated = True
         
         self.total_reward += reward

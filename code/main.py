@@ -1,8 +1,8 @@
 import pygame, sys
-from settings import * 
+from settings import screen_width, screen_height
 from level import Level
 from ui import UI
-
+import random
 
 class Game:
     def __init__(self, external_screen=None):
@@ -10,7 +10,7 @@ class Game:
         self.max_health = 100
         self.cur_health = 100
         self.coins = 0
-        
+        self.cur_level = 1  # Randomly select a level between 1 and 5
         # Audio 
         self.level_bg_music = pygame.mixer.Sound('../audio/level_music.wav')
 
@@ -18,7 +18,7 @@ class Game:
         self.screen = external_screen if external_screen else pygame.display.set_mode((screen_width, screen_height))
         
         # Directly start cur_level
-        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)
+        self.level = Level(self.cur_level, self.screen, self.change_coins, self.change_health)
         self.status = 'level'
         self.level_bg_music.play(loops=-1)
 
@@ -35,7 +35,7 @@ class Game:
         """Restart the level instead of quitting the game"""
         self.cur_health = 100  # Reset health
         self.coins = 0  # Reset coins
-        self.level = Level(cur_level, self.screen, self.change_coins, self.change_health)  # Restart cur_level
+        self.level = Level(self.cur_level, self.screen, self.change_coins, self.change_health)  # Restart cur_level
         self.status = 'level'
 
     def run(self):

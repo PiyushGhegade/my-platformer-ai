@@ -36,7 +36,7 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
 
 if __name__ == '__main__':
     # Setup
-    log_dir = "../tensorboard_activity/ppo_tensorboard/"
+    log_dir = "../tensorboard_activity/ppo_tensorboard_improve_GPU/"
     os.makedirs(log_dir, exist_ok=True)
     
     # Create environment with frame stacking
@@ -71,17 +71,17 @@ if __name__ == '__main__':
     print("------------- Start Learning -------------")
     try:
         model.learn(
-            total_timesteps=1_000_000,  # Increased from 500k
+            total_timesteps=4_000_000,  # Increased from 500k
             callback=callback,
             tb_log_name="PPO",
             progress_bar=True
         )
     except KeyboardInterrupt:
         print("Training interrupted - saving model...")
-        model.save("../model/ppo_interrupted")
+        model.save("../model/ppo_interrupted_improved_GPU")
     
     # Save and test
-    model.save("../model/ppo_platformer")
+    model.save("../model/ppo_platformer_improved_GPU")
     print("------------- Training Complete -------------")
     
     # Testing with rendering
